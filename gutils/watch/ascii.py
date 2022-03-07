@@ -82,22 +82,26 @@ def create_netcdf_arg_parser():
     parser.add_argument(
         '-fp', '--filter_points',
         help="Filter out profiles that do not have at least this number of points",
-        default=5
+        default=5,
+        type=int
     )
     parser.add_argument(
         '-fd', '--filter_distance',
         help="Filter out profiles that do not span at least this vertical distance (meters)",
-        default=1
+        default=1,
+        type=float
     )
     parser.add_argument(
         '-ft', '--filter_time',
         help="Filter out profiles that last less than this number of seconds",
-        default=10
+        default=10,
+        type=float
     )
     parser.add_argument(
         '-fz', '--filter_z',
         help="Filter out profiles that are not completely below this depth (meters)",
-        default=1
+        default=1,
+        type=float
     )
     parser.add_argument(
         "-za",

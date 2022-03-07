@@ -64,7 +64,12 @@ class SlocumReader(object):
                     self.mode = m
                     break
 
-    def extras(self):
+    def extras(self, data):
+        """
+        Process pseudogram and echometrics data here for now.  If the echometrics
+        data is found, the echometrics (echodroid) variables are reassigned the
+        extras dimension.
+        """
         pse_file = Path(self.ascii_file).with_suffix(".pseudogram")
         if pse_file.exists():
             try:
@@ -77,6 +82,36 @@ class SlocumReader(object):
                         'pseudogram_sv'
                     ]
                 )
+
+                # Loop through echometrics values and assign them into available pseudogram times
+                if 'sci_echodroid_sv' in data.columns:
+                    # Only move echometrics data that is not NaN.  There is a curious
+                    # problem from the science computer where the first row of echometrics
+                    # data could be all zeroes.  Here we take valid Sv values < 0 dB.
+                    echometricsData = data[data['sci_echodroid_sv'] < 0]
+                    if len(echometricsData) > 0:
+                        # Create echometrics variables in self._extras
+                        ECHOMETRICS_SENSORS = ['sci_echodroid_aggindex', 'sci_echodroid_ctrmass',
+                            'sci_echodroid_eqarea', 'sci_echodroid_inertia', 'sci_echodroid_propocc',
+                            'sci_echodroid_sa', 'sci_echodroid_sv']
+                        for sensor in ECHOMETRICS_SENSORS:
+                            self._extras[sensor] = np.full((len(self._extras['pseudogram_time'])), np.nan)
+                        for idx, row in echometricsData.iterrows():
+                            tdiff = np.abs(np.unique(self._extras['pseudogram_time']) - row['m_present_time']).min()
+                            # if a close enough match is found, assign the echometrics
+                            # values into self._extras
+                            if tdiff < 1e-6:
+                                tidx = np.abs(np.unique(self._extras['pseudogram_time']) - row['m_present_time']).argmin()
+                                ptime = np.unique(self._extras['pseudogram_time'])[tidx]
+                                # Place values into the first time index that matches
+                                ptimeidx = self._extras['pseudogram_time'][self._extras['pseudogram_time'] == ptime].axes[0].values[0]
+                                # Update self._extras from the row of echometrics data
+                                dataRow = row.get(ECHOMETRICS_SENSORS)
+                                self._extras.update(pd.DataFrame(dataRow.to_dict(),index=[ptimeidx]))
+                        # Once data is copied out of data, the columns have to be removed from data
+                        # or the write to netCDF will fail.
+                        data = data.drop(columns=ECHOMETRICS_SENSORS)
+
                 self._extras['pseudogram_time'] = pd.to_datetime(
                     self._extras.pseudogram_time, unit='s', origin='unix'
                 )
@@ -89,7 +124,7 @@ class SlocumReader(object):
                 self._extras = pd.DataFrame()
                 L.warning(f"Could not process pseudogram file {pse_file}: {e}")
 
-        return self._extras
+        return self._extras, data
 
     def read(self):
         metadata = OrderedDict()
@@ -385,10 +420,11 @@ class SlocumMerger(object):
 
         # Ideally this code isn't tacked into convertDbds.sh to output separate
         # files and can be done using the ASCII files exported from SlocumMerger
-        # using pandas. Maybe Rob Cermack will take a look and integrate the code
-        # more tightly into GUTILS? For now we are going to keep it separate
-        # so UAF can iterate on the code and we can just plop their updated files
-        # into the "ecotools" folder of GUTILS.
+        # using pandas. Tighter integration into GUTILS will be done by
+        # Rob Cermak@{UAF,UW}/John Horne@UW.  For now, the code is separate
+        # and placed in # GUTILS/gutils/slocum/echotools.
+        # The tools require one additional python library: dbdreader
+        # https://github.com/smerckel/dbdreader
         for d in PSEUDOGRAM_DEPLOYMENTS:
             if d in self.matched_files[0]:
                 pargs = pargs + [

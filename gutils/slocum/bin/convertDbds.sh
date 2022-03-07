@@ -402,8 +402,8 @@ do
         then
             [ -z "$quiet" ] && echo "Computing Scatter Pseudogram";
             $python_path $pseudogram \
-                --tbdFile $sciSource \
-                --sbdFile $dbdSource \
+                --inpDir ${dbdRoot} \
+                --inpFile ${segment}.?bd \
                 --cacheDir $local_cac_dir \
                 --dbd2asc $dbd2asc \
                 --csvOut "${tmpDir}/${dbdSeg}_${asciiExt}.pseudogram" \
@@ -416,8 +416,8 @@ do
         then
             [ -z "$quiet" ] && echo "Computing Pseudogram Images";
             $python_path $pseudogram \
-                --tbdFile $sciSource \
-                --sbdFile $dbdSource \
+                --inpDir ${dbdRoot} \
+                --inpFile ${segment}.?bd \
                 --cacheDir $local_cac_dir \
                 --dbd2asc $dbd2asc \
                 --imageOut "${tmpDir}/${dbdSeg}_${asciiExt}.scatter.png" \
@@ -426,12 +426,11 @@ do
                 --title "$segment - Scatter"
 
             $python_path $pseudogram \
-                --tbdFile $sciSource \
-                --sbdFile $dbdSource \
+                --inpDir ${dbdRoot} \
+                --inpFile ${segment}.?bd \
                 --cacheDir $local_cac_dir \
                 --dbd2asc $dbd2asc \
                 --imageOut "${tmpDir}/${dbdSeg}_${asciiExt}.binned.png" \
-                --binnedDepthLabels \
                 --echosounderRange "$echosounderRange" \
                 --title "$segment - Binned"
         fi

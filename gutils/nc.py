@@ -472,27 +472,32 @@ def create_arg_parser():
     parser.add_argument(
         '-ts', '--tsint',
         help="Interpolation window to consider when assigning profiles",
-        default=None
+        default=None,
+        type=int
     )
     parser.add_argument(
         '-fp', '--filter_points',
         help="Filter out profiles that do not have at least this number of points",
-        default=None
+        default=None,
+        type=int
     )
     parser.add_argument(
         '-fd', '--filter_distance',
         help="Filter out profiles that do not span at least this vertical distance (meters)",
-        default=None
+        default=None,
+        type=float
     )
     parser.add_argument(
         '-ft', '--filter_time',
         help="Filter out profiles that last less than this numer of seconds",
-        default=None
+        default=None,
+        type=float
     )
     parser.add_argument(
         '-fz', '--filter_z',
         help="Filter out profiles that are not completely below this depth (meters)",
-        default=None
+        default=None,
+        type=float
     )
     parser.add_argument(
         "-za",
