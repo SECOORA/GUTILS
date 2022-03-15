@@ -113,7 +113,15 @@ def process_dataset(file,
     try:
         reader = reader_class(file)
         data = reader.standardize(z_axis_method=z_axis_method)
-        extras = reader.extras()
+        # For whatever reason, only the first downward leg of
+        # profile 1 is written to the netCDF file.  The acoustic
+        # sensors for Gretel(unit_507) are on during the upward
+        # portion of the leg.
+        # The data section is also passed to extras processing
+        # for the pseudogram.  If the pseudogram is found, the
+        # echometrics (echodroid) variable are removed from the
+        # data section and reassigned with the extras dimension.
+        extras, data = reader.extras(data)
 
         if 'z' not in data.columns:
             L.warning("No Z axis found - Skipping {}".format(file))
