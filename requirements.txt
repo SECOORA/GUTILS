@@ -3,7 +3,7 @@ compliance-checker>=4.1.1
 gsw>=3.4.0,<4.0
 matplotlib
 netCDF4
-numpy<1.20
+numpy<1.25
 openssl<3.0  # No idea why this is required to get mamba to build the env
 pandas>=1.2,<2.0
 pocean-core>=3.0.0,<4.0
