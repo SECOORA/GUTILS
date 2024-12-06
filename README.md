@@ -46,7 +46,7 @@ $ conda install -c conda-forge gutils
 ## Setup
 
 ```bash
-$ git clone [git@git.axiom:axiom/packrat.git](https://github.com/secoora/GUTILS.git)
+$ git clone https://github.com/secoora/GUTILS.git
 ```
 
 Install Anaconda (using python3): http://conda.pydata.org/docs/download.html
