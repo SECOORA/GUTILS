@@ -727,7 +727,7 @@ def merge_profile_netcdf_files(folder, output):
             os.remove(new_path)
 
 
-def process_folder(deployment_path, mode, merger_class, reader_class, subset=True, template='trajectory', profile_id_type=ProfileIdTypes.EPOCH, workers=4, **filters):
+def process_folder(deployment_path, mode, merger_class, reader_class=SlocumReader, subset=True, template='trajectory', profile_id_type=ProfileIdTypes.EPOCH, workers=4, **filters):
 
     from multiprocessing import Pool
 
@@ -748,7 +748,7 @@ def process_folder(deployment_path, mode, merger_class, reader_class, subset=Tru
 
     with Pool(processes=workers) as pool:
         kwargs = dict(
-            reader_class=SlocumReader,
+            reader_class=reader_class,
             deployments_path=Path(str(deployment_path)).parent,
             subset=subset,
             template=template,
