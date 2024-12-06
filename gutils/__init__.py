@@ -305,5 +305,5 @@ def setup_cli_logger(level=None):
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     sh.setFormatter(formatter)
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
+    root_logger.setLevel(level)
     root_logger.handlers = [sh]
