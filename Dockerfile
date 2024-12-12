@@ -60,6 +60,7 @@ RUN pip install \
         --no-deps \
         --force-reinstall \
         --ignore-installed \
+        --use-pep517 \
         -r /tmp/pip-requirements.txt
 
 ENV PATH /opt/conda/bin:$PATH
@@ -78,5 +79,5 @@ ENV GUTILS_VERSION 3.2.0
 ENV PROJECT_ROOT /code
 RUN mkdir -p "$PROJECT_ROOT"
 COPY . $PROJECT_ROOT
-RUN cd $PROJECT_ROOT && pip install --no-deps .
+RUN cd $PROJECT_ROOT && pip install --no-deps --use-pep517 .
 WORKDIR $PROJECT_ROOT
