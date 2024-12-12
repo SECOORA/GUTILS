@@ -32,7 +32,7 @@ from pocean.dsg import (
 
 from gutils import get_uv_data, get_profile_data, read_attrs, safe_makedirs, setup_cli_logger
 from gutils.filters import process_dataset
-from gutils.slocum import SlocumReader
+from gutils.slocum import SlocumMerger, SlocumReader
 
 import logging
 logging.getLogger("urllib3").setLevel(logging.WARNING)
@@ -591,6 +591,7 @@ def main_create():
 
 # CHECKER
 def check_dataset(args):
+    L.info('Checking {}'.format(args.file))
     check_suite = CheckSuite()
     check_suite.load_all_available_checkers()
 
@@ -760,6 +761,198 @@ def process_folder(deployment_path, mode, merger_class=SlocumMerger, reader_clas
             pool.apply_async(
                 create_dataset, (), dict(file=x, **kwargs)
             ) for x in asciis
+        ]
+
+        print([ res.get() for res in multiple_results ])
+
+def process_folder_arg_parser():
+    parser = argparse.ArgumentParser(
+        description='Parses a deployment folder of binary files into a set of '
+                    'NetCDF files according to JSON configurations '
+                    'for institution, deployment, glider, and datatypes.'
+    )
+    parser.add_argument(
+        'deployment_path',
+        help='Path to folder containing all deployment config and for file output.'
+    )
+    parser.add_argument(
+        '--mode',
+        help="Glider mode, either 'rt' (real-time) or 'delayed'; default is 'delayed' since this is a bulk operation.",
+        default='delayed',
+        choices=['rt', 'delayed']
+    )
+    parser.add_argument(
+        "-r",
+        "--reader_class",
+        help="Glider reader to interpret the data",
+        default='slocum'
+    )
+    parser.add_argument(
+        "-m",
+        "--merger_class",
+        help="Glider merger to convert the data from binary to ASCII",
+        default='slocum'
+    )
+    parser.add_argument(
+        '-ts', '--tsint',
+        help="Interpolation window to consider when assigning profiles",
+        default=None,
+        type=int
+    )
+    parser.add_argument(
+        '-fp', '--filter_points',
+        help="Filter out profiles that do not have at least this number of points",
+        default=None,
+        type=int
+    )
+    parser.add_argument(
+        '-fd', '--filter_distance',
+        help="Filter out profiles that do not span at least this vertical distance (meters)",
+        default=None,
+        type=float
+    )
+    parser.add_argument(
+        '-ft', '--filter_time',
+        help="Filter out profiles that last less than this numer of seconds",
+        default=None,
+        type=float
+    )
+    parser.add_argument(
+        '-fz', '--filter_z',
+        help="Filter out profiles that are not completely below this depth (meters)",
+        default=None,
+        type=float
+    )
+    parser.add_argument(
+        "-za",
+        "--z_axis_method",
+        help="1 == Calculate depth from pressure, 2 == Use raw depth values",
+        default=1,
+        type=int
+    )
+    parser.add_argument(
+        '--no-subset',
+        dest='subset',
+        action='store_false',
+        help='Process all variables - not just those available in a datatype mapping JSON file'
+    )
+    parser.add_argument(
+        "-t",
+        "--template",
+        help="The template to use when writing netCDF files. Options: None, [filepath], trajectory, ioos_ngdac",
+        default='trajectory'
+    ),
+    parser.add_argument(
+        "-w",
+        "--workers",
+        help="The number of workers to use when processing the files",
+        type=int,
+        default=4
+    ),
+    parser.add_argument(
+        '--log_level',
+        help='Set the logging level',
+        default='WARNING',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+    )
+    parser.set_defaults(subset=True)
+
+    return parser
+
+def main_process_folder():
+
+    parser = process_folder_arg_parser()
+
+    args = parser.parse_args()
+
+    filter_args = vars(args)
+
+    # Remove non-filter args into positional arguments
+    deployment_path = filter_args.pop('deployment_path')
+    mode = filter_args.pop('mode')
+    subset = filter_args.pop('subset')
+    template = filter_args.pop('template')
+    z_axis_method = filter_args.pop('z_axis_method')
+    workers = filter_args.pop('workers')
+    log_level = filter_args.pop('log_level')
+
+    setup_cli_logger(getattr(logging, log_level))
+
+    # Move reader_class to a class
+    reader_class = filter_args.pop('reader_class')
+    if reader_class == 'slocum':
+        reader_class = SlocumReader
+
+    # Move merger_class to a class
+    merger_class = filter_args.pop('merger_class')
+    if merger_class == 'slocum':
+        merger_class = SlocumMerger
+
+    process_folder(
+        deployment_path=deployment_path,
+        mode=mode,
+        reader_class=reader_class,
+        merger_class=merger_class,
+        subset=subset,
+        template=template,
+        workers=workers,
+        z_axis_method=z_axis_method,
+        **filter_args
+    )
+
+def check_folder_arg_parser():
+    parser = argparse.ArgumentParser(
+        description='Verifies that a folder of glider NetCDF files from a provider '
+                    'contain all the required global attributes, dimensions,'
+                    'scalar variables and dimensioned variables.'
+    )
+    parser.add_argument(
+        'deployment_path',
+        help='Path to folder containing all deployment config and for file output.'
+    )
+    parser.add_argument(
+        '--mode',
+        help="Glider mode, either 'rt' (real-time) or 'delayed'; default is 'delayed' since this is a bulk operation.",
+        default='delayed',
+        choices=['rt', 'delayed']
+    )
+    parser.add_argument(
+        "-w",
+        "--workers",
+        help="The number of workers to use when checking the files",
+        type=int,
+        default=4
+    ),
+    parser.add_argument(
+        '--log_level',
+        help='Set the logging level',
+        default='WARNING',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+    )
+    return parser
+
+class CheckDatasetArgs:
+    def __init__(self, file):
+        self.file = file
+
+def create_check_dataset_args(file):
+    return CheckDatasetArgs(file)
+
+def main_check_folder():
+    from multiprocessing import Pool
+
+    parser = check_folder_arg_parser()
+    args = parser.parse_args()
+
+    setup_cli_logger(getattr(logging, args.log_level))
+
+    ncs = Path(args.deployment_path, args.mode, 'netcdf').glob('*.nc')
+
+    with Pool(processes=args.workers) as pool:
+        multiple_results = [
+            pool.apply_async(
+                check_dataset, (create_check_dataset_args(str(x)),)
+            ) for x in ncs
         ]
 
         print([ res.get() for res in multiple_results ])
