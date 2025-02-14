@@ -765,6 +765,7 @@ def process_folder(deployment_path, mode, merger_class=SlocumMerger, reader_clas
 
         print([ res.get() for res in multiple_results ])
 
+
 def process_folder_arg_parser():
     parser = argparse.ArgumentParser(
         description='Parses a deployment folder of binary files into a set of '
@@ -859,6 +860,7 @@ def process_folder_arg_parser():
 
     return parser
 
+
 def main_process_folder():
 
     parser = process_folder_arg_parser()
@@ -900,6 +902,7 @@ def main_process_folder():
         **filter_args
     )
 
+
 def check_folder_arg_parser():
     parser = argparse.ArgumentParser(
         description='Verifies that a folder of glider NetCDF files from a provider '
@@ -931,12 +934,15 @@ def check_folder_arg_parser():
     )
     return parser
 
+
 class CheckDatasetArgs:
     def __init__(self, file):
         self.file = file
 
+
 def create_check_dataset_args(file):
     return CheckDatasetArgs(file)
+
 
 def main_check_folder():
     from multiprocessing import Pool
