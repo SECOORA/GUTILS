@@ -1,0 +1,100 @@
+services:
+
+  # Plaintext FTP target. Same image as the ftps service below, with no TLS
+  # flags, so it is cleartext-only -- this is the legacy path GUTILS speaks
+  # today via ftplib.FTP.
+  # Host: localhost:2021, passive 30100-30109.
+  ftp:
+    image: stilliard/pure-ftpd
+    environment:
+      FTP_USER_NAME: thisisme
+      FTP_USER_PASS: thisismypass
+      FTP_USER_HOME: /home/ftpusers/thisisme
+      # PASV address handed back to clients. 'ftp' resolves over the compose
+      # network; use 'localhost' instead if you are testing from the host.
+      PUBLICHOST: ftp
+      # Must not overlap with the ftps service's range.
+      FTP_PASSIVE_PORTS: "30100:30109"
+    volumes:
+      - "${GLIDER_DATA_VOLUME}/ftp:/home/ftpusers/thisisme"
+    ports:
+      - "2021:21"
+      - "30100-30109:30100-30109"
+
+  # FTPS (explicit TLS / AUTH TLS) target, with require_ssl_reuse=YES.
+  #
+  # This is the case that matters for the DAC migration. vsftpd defaults to
+  # require_ssl_reuse=YES (IIS behaves the same way), meaning the data
+  # connection must resume the control connection's TLS session. Python's
+  # stdlib ftplib never does that -- FTP_TLS.ntransfercmd wraps the data socket
+  # with no session= argument -- so connect/login/prot_p all succeed and the
+  # transfer then fails with a 425. See .claude/recommendations/01-ftp-reuse.md.
+  #
+  # pure-ftpd cannot reproduce this: it has no session reuse option at all, so
+  # an unpatched client uploads to it just fine. That is what the ftps-noreuse
+  # service below is for -- the contrast between the two is the test.
+  #
+  # The cert is self-signed, so connecting with verification enabled must fail
+  # loudly rather than downgrade to plaintext (matrix case 3).
+  # Host: localhost:2121, passive 30000-30009.
+  ftps:
+    build: ./extras/vsftpd
+    environment:
+      FTP_USER_NAME: thisisme
+      FTP_USER_PASS: thisismypass
+      SSL_ENABLE: "YES"
+      REQUIRE_SSL_REUSE: "YES"
+      # PASV address handed back to clients. 'ftps' resolves over the compose
+      # network; use 'localhost' instead if you are testing from the host.
+      PUBLICHOST: ftps
+      TLS_CN: ftps
+      PASV_MIN_PORT: "30000"
+      PASV_MAX_PORT: "30009"
+    volumes:
+      - "${GLIDER_DATA_VOLUME}/ftps:/home/ftpusers/thisisme"
+    ports:
+      - "2121:21"
+      - "30000-30009:30000-30009"
+
+  # FTPS target that does *not* require session reuse -- the control for the
+  # service above. An unpatched stdlib client succeeds here and fails against
+  # ftps, which is how you tell a session reuse failure apart from a general
+  # TLS or passive-mode misconfiguration.
+  # --tls=2 *requires* encryption: cleartext logins are rejected with a 421.
+  # Host: localhost:2122, passive 30200-30209.
+  ftps-noreuse:
+    image: stilliard/pure-ftpd
+    environment:
+      FTP_USER_NAME: thisisme
+      FTP_USER_PASS: thisismypass
+      FTP_USER_HOME: /home/ftpusers/thisisme
+      ADDED_FLAGS: "--tls=2"
+      # Self-signed cert generated on first boot. TLS_USE_DSAPRAM keeps the
+      # dhparam generation to a few seconds instead of several minutes.
+      TLS_CN: ftps-noreuse
+      TLS_ORG: GUTILS
+      TLS_C: US
+      TLS_USE_DSAPRAM: "true"
+      PUBLICHOST: ftps-noreuse
+      FTP_PASSIVE_PORTS: "30200:30209"
+    volumes:
+      - "${GLIDER_DATA_VOLUME}/ftps-noreuse:/home/ftpusers/thisisme"
+    ports:
+      - "2122:21"
+      - "30200-30209:30200-30209"
+
+  gutils:
+    image: gutils
+    environment:
+      GUTILS_FTP_URL: ftps-noreuse
+      GUTILS_FTP_USER: thisisme
+      GUTILS_FTP_PASS: thisismypass
+      RUN_BINARY_TO_ASCII_WATCH: "yes"
+      RUN_ASCII_TO_NETCDF_WATCH: "yes"
+      RUN_NETCDF_TO_FTP_WATCH: "yes"
+      GUTILS_NETCDF_TEMPLATE: ioos_ngdac
+      GUTILS_FTPS_NO_VERIFY: "yes"
+    volumes:
+      - "${GLIDER_DATA_VOLUME}/secoora/dev/deployments:/gutils/deployments"
+    depends_on:
+      - ftps

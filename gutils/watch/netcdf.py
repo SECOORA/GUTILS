@@ -5,7 +5,6 @@ import sys
 import shutil
 import argparse
 import tempfile
-from ftplib import FTP
 from pathlib import Path
 from copy import deepcopy
 from datetime import datetime
@@ -26,6 +25,7 @@ from pyinotify import (
 
 from gutils import setup_cli_logger
 from gutils.nc import check_dataset
+from gutils.submission.ftp import connect_ftp_auto
 
 import logging
 L = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ class Netcdf2FtpProcessor(NetcdfProcessor):
                 'timeout': self.ftp_timeout
             }
 
-            with FTP(**ftp_kwargs) as ftp:
+            with connect_ftp_auto(**ftp_kwargs) as ftp:
 
                 with nc4.Dataset(event.pathname) as ncd:
                     if not hasattr(ncd, 'id'):

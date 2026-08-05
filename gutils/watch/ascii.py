@@ -198,3 +198,7 @@ def main_to_netcdf():
 
     L.info("GUTILS ascii_to_netcdf Exited Successfully")
     return 0
+
+
+if __name__ == "__main__":
+    main_to_netcdf()
